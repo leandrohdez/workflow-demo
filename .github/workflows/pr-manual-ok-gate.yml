@@ -1,0 +1,59 @@
+name: PR Manual OK Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Número de la Pull Request"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-pr:
+    name: Validate PR for merge
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR label and target branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          echo "Checking PR #$PR_NUMBER..."
+
+          PR_DATA=$(gh pr view "$PR_NUMBER" --json number,state,isDraft,baseRefName,headRefName,headRefOid,labels)
+
+          echo "$PR_DATA"
+
+          STATE=$(echo "$PR_DATA" | jq -r '.state')
+          IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft')
+          BASE_REF=$(echo "$PR_DATA" | jq -r '.baseRefName')
+          HAS_OK_LABEL=$(echo "$PR_DATA" | jq -r '[.labels[].name] | index("ok") != null')
+
+          if [ "$STATE" != "OPEN" ]; then
+            echo "La PR no está abierta."
+            exit 1
+          fi
+
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "La PR está en draft."
+            exit 1
+          fi
+
+          if [ "$BASE_REF" != "main" ]; then
+            echo "La PR no apunta a main."
+            exit 1
+          fi
+
+          if [ "$HAS_OK_LABEL" != "true" ]; then
+            echo "La PR no tiene la label 'ok'."
+            exit 1
+          fi
+
+          echo "Validación correcta. La PR tiene la label 'ok' y apunta a main."
