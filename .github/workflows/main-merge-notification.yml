@@ -1,0 +1,14 @@
+name: Main Merge Notification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify-main-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print merge message
+        run: echo "MAIN MERGE DONE"
