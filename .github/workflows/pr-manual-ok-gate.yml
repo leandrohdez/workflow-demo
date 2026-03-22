@@ -2,11 +2,6 @@ name: PR Manual OK Gate
 
 on:
   workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "Número de la Pull Request"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -18,26 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate PR label and target branch
+      - name: Resolve PR from selected branch
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           set -euo pipefail
 
-          echo "Checking PR #$PR_NUMBER..."
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          echo "Selected branch: $BRANCH_NAME"
 
-          PR_DATA=$(gh pr view "$PR_NUMBER" --json number,state,isDraft,baseRefName,headRefName,headRefOid,labels)
+          PRS=$(gh pr list \
+            --head "$BRANCH_NAME" \
+            --state open \
+            --json number,baseRefName,isDraft,labels)
 
-          echo "$PR_DATA"
+          COUNT=$(echo "$PRS" | jq 'length')
 
-          STATE=$(echo "$PR_DATA" | jq -r '.state')
-          IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft')
-          BASE_REF=$(echo "$PR_DATA" | jq -r '.baseRefName')
-          HAS_OK_LABEL=$(echo "$PR_DATA" | jq -r '[.labels[].name] | index("ok") != null')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No hay ninguna PR abierta para la rama $BRANCH_NAME"
+            exit 1
+          fi
 
-          if [ "$STATE" != "OPEN" ]; then
-            echo "La PR no está abierta."
+          if [ "$COUNT" -gt 1 ]; then
+            echo "Hay más de una PR abierta para la rama $BRANCH_NAME. No es seguro continuar."
+            exit 1
+          fi
+
+          BASE_REF=$(echo "$PRS" | jq -r '.[0].baseRefName')
+          IS_DRAFT=$(echo "$PRS" | jq -r '.[0].isDraft')
+          HAS_OK_LABEL=$(echo "$PRS" | jq -r '[.[0].labels[].name] | index("ok") != null')
+          PR_NUMBER=$(echo "$PRS" | jq -r '.[0].number')
+
+          echo "PR detectada: #$PR_NUMBER"
+
+          if [ "$BASE_REF" != "main" ]; then
+            echo "La PR no apunta a main."
             exit 1
           fi
 
@@ -46,14 +56,9 @@ jobs:
             exit 1
           fi
 
-          if [ "$BASE_REF" != "main" ]; then
-            echo "La PR no apunta a main."
-            exit 1
-          fi
-
           if [ "$HAS_OK_LABEL" != "true" ]; then
             echo "La PR no tiene la label 'ok'."
             exit 1
           fi
 
-          echo "Validación correcta. La PR tiene la label 'ok' y apunta a main."
+          echo "Validación correcta."
