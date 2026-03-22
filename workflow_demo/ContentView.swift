@@ -17,7 +17,7 @@ struct ContentView: View {
                     Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                 }
                 .tag(0)
-
+                
             ExploreView()
                 .tabItem {
                     Label("Explore", systemImage: selectedTab == 1 ? "square.grid.2x2.fill" : "square.grid.2x2")
