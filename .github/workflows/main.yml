@@ -5,16 +5,26 @@ on:
 
 jobs:
   check-swift:
+    name: Check Swift
     runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - run: |
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Show Xcode and Swift version
+        run: |
           xcodebuild -version
           swift --version
 
-  check-workspace:
+  check-project:
+    name: Check Project
     runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - run: |
-          xcodebuild -list -workspace MyApp.xcworkspace
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: List project info
+        run: |
+          xcodebuild -list -project workflow_demo.xcodeproj
